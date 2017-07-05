@@ -5,13 +5,21 @@ package fi.razerman.bancontactrootbypasser;
  */
 
 
-import android.util.Log;
+import android.content.Context;
+import android.content.pm.PackageManager;
 
-import static de.robv.android.xposed.XposedBridge.log;
-import static de.robv.android.xposed.XposedHelpers.findAndHookMethod;
 import de.robv.android.xposed.IXposedHookLoadPackage;
 import de.robv.android.xposed.callbacks.XC_LoadPackage.LoadPackageParam;
+
 import static de.robv.android.xposed.XC_MethodReplacement.returnConstant;
+import static de.robv.android.xposed.XposedBridge.log;
+import static de.robv.android.xposed.XposedHelpers.callMethod;
+import static de.robv.android.xposed.XposedHelpers.callStaticMethod;
+import static de.robv.android.xposed.XposedHelpers.findAndHookMethod;
+import static de.robv.android.xposed.XposedHelpers.findClass;
+
+import android.util.Log;
+import java.util.List;
 
 public class RootDetectionBypass implements IXposedHookLoadPackage {
     private static final String TAG = RootDetectionBypass.class.getSimpleName();
@@ -19,6 +27,22 @@ public class RootDetectionBypass implements IXposedHookLoadPackage {
     public void handleLoadPackage(final LoadPackageParam lpparam) throws Throwable {
         if (lpparam.packageName.equals("mobi.inthepocket.bcmc.bancontact")){
             Log.d(TAG, "Bancontact app detected, starting to bypass root detection!");
+
+            final String APP_PACKAGE = "mobi.inthepocket.bcmc.bancontact";
+            int versionCode = 0;
+            try {
+                final Object activityThread = callStaticMethod(findClass("android.app.ActivityThread", null), "currentActivityThread");
+                final Context context = (Context) callMethod(activityThread, "getSystemContext");
+                versionCode = context.getPackageManager().getPackageInfo(APP_PACKAGE, 0).versionCode;
+                Log.d(TAG, "Version: " + versionCode);
+
+            } catch (PackageManager.NameNotFoundException e) {
+                //Handle exception
+                Log.d(TAG, "Couldn't retrieve version.");
+            }
+
+            // 2.4.1 = 20000045
+            // 2.3.5.894 = 20000042
 
             // Native methods
             findAndHookMethod("com.awl.bfi.ssm.NativeAdapter", lpparam.classLoader, "existInstalledRootedApps", returnConstant(0));           // Check 1
@@ -28,68 +52,121 @@ public class RootDetectionBypass implements IXposedHookLoadPackage {
             Log.d(TAG, "Native methods bypassed!");
 
             // RootedDetector
-            try{
-                findAndHookMethod("ʟ", lpparam.classLoader, "ˊ", returnConstant(false));                                    // Check 1
-                findAndHookMethod("ʟ", lpparam.classLoader, "ˋ", returnConstant(false));                                    // Check 2
-                findAndHookMethod("ʟ", lpparam.classLoader, "ˋ", android.content.Context.class, returnConstant(false));     // Check 3
-                findAndHookMethod("ʟ", lpparam.classLoader, "ˎ", returnConstant(false));                                    // Check 4
-                Log.d(TAG, "Old RootedDetector bypassed!");
+            if(versionCode >= 20000045){
+                try {
+                    Log.d(TAG, "Starting to bypass RootedDetector version 2.4.1 or higher");
+                    findAndHookMethod("ᵥ", lpparam.classLoader, "ʻ", android.content.Context.class, returnConstant(false));     // Check 1
+                    findAndHookMethod("ᵥ", lpparam.classLoader, "ˋ", android.content.Context.class, returnConstant(false));     // Check 2
+                    findAndHookMethod("ᵥ", lpparam.classLoader, "ˎ", android.content.Context.class, returnConstant(false));     // Check 3
+                    findAndHookMethod("ᵥ", lpparam.classLoader, "ˏ", android.content.Context.class, returnConstant(false));     // Check 4
+                    findAndHookMethod("ᵥ", lpparam.classLoader, "ᐝ", android.content.Context.class, returnConstant(false));     // Check 5
+                    Log.d(TAG, "RootedDetector bypassed!");
+                }
+                catch (Throwable ex){
+                    Log.d(TAG, "RootedDetector failed!");
+                }
             }
-            catch (Throwable e){
-                Log.d(TAG, "Old RootedDetector failed, trying a new one!");
-                try{
+            else if(versionCode >= 20000042){
+                try {
+                    Log.d(TAG, "Starting to bypass RootedDetector version 2.3.5.894 or higher");
                     findAndHookMethod("Ϊ", lpparam.classLoader, "ʻ", android.content.Context.class, returnConstant(false));     // Check 1
                     findAndHookMethod("Ϊ", lpparam.classLoader, "ˋ", android.content.Context.class, returnConstant(false));     // Check 2
                     findAndHookMethod("Ϊ", lpparam.classLoader, "ˎ", android.content.Context.class, returnConstant(false));     // Check 3
                     findAndHookMethod("Ϊ", lpparam.classLoader, "ˏ", android.content.Context.class, returnConstant(false));     // Check 4
                     findAndHookMethod("Ϊ", lpparam.classLoader, "ᐝ", android.content.Context.class, returnConstant(false));     // Check 5
-                    Log.d(TAG, "New RootedDetector bypassed!");
+                    Log.d(TAG, "RootedDetector bypassed!");
                 }
                 catch (Throwable ex){
-                    Log.d(TAG, "New RootedDetector failed!");
-
+                    Log.d(TAG, "RootedDetector failed!");
+                }
+            }
+            else{
+                try {
+                    Log.d(TAG, "Starting to bypass RootedDetector version lower than 2.3.5.894");
+                    findAndHookMethod("ʟ", lpparam.classLoader, "ˊ", returnConstant(false));                                    // Check 1
+                    findAndHookMethod("ʟ", lpparam.classLoader, "ˋ", returnConstant(false));                                    // Check 2
+                    findAndHookMethod("ʟ", lpparam.classLoader, "ˋ", android.content.Context.class, returnConstant(false));     // Check 3
+                    findAndHookMethod("ʟ", lpparam.classLoader, "ˎ", returnConstant(false));                                    // Check 4
+                    Log.d(TAG, "RootedDetector bypassed!");
+                }
+                catch (Throwable e){
+                    Log.d(TAG, "RootedDetector failed, trying a new one!");
                 }
             }
 
             // EmulatorDetector
-            try{
-                findAndHookMethod("Ӏ", lpparam.classLoader, "ˊ", returnConstant(false));                                    // Check 1
-                findAndHookMethod("Ӏ", lpparam.classLoader, "ˋ", returnConstant(false));                                    // Check 2
-                findAndHookMethod("Ӏ", lpparam.classLoader, "ˋ", android.content.Context.class, returnConstant(false));     // Check 3
-                findAndHookMethod("Ӏ", lpparam.classLoader, "ˎ", returnConstant(false));                                    // Check 4
-                findAndHookMethod("Ӏ", lpparam.classLoader, "ˎ", android.content.Context.class, returnConstant(false));     // Check 5
-                Log.d(TAG, "Old EmulatorDetector bypassed!");
+            if(versionCode >= 20000045){
+                try {
+                    Log.d(TAG, "Starting to bypass EmulatorDetector version 2.4.1 or higher");
+                    findAndHookMethod("ﺩ", lpparam.classLoader, "ʻ", android.content.Context.class, returnConstant(false));     // Check 1
+                    findAndHookMethod("ﺩ", lpparam.classLoader, "ˋ", android.content.Context.class, returnConstant(false));     // Check 2
+                    findAndHookMethod("ﺩ", lpparam.classLoader, "ˎ", android.content.Context.class, returnConstant(false));     // Check 3
+                    findAndHookMethod("ﺩ", lpparam.classLoader, "ˏ", android.content.Context.class, returnConstant(false));     // Check 4
+                    findAndHookMethod("ﺩ", lpparam.classLoader, "ᐝ", android.content.Context.class, returnConstant(false));     // Check 5
+                    Log.d(TAG, "EmulatorDetector bypassed!");
+                }
+                catch (Throwable ex){
+                    Log.d(TAG, "EmulatorDetector failed!");
+                }
             }
-            catch (Throwable e){
-                Log.d(TAG, "Old EmulatorDetector failed, trying a new one!");
-                try{
+            else if(versionCode >= 20000042){
+                try {
+                    Log.d(TAG, "Starting to bypass EmulatorDetector version 2.3.5.894 or higher");
                     findAndHookMethod("Ӏ", lpparam.classLoader, "ʻ", android.content.Context.class, returnConstant(false));     // Check 1
                     findAndHookMethod("Ӏ", lpparam.classLoader, "ˋ", android.content.Context.class, returnConstant(false));     // Check 2
                     findAndHookMethod("Ӏ", lpparam.classLoader, "ˎ", android.content.Context.class, returnConstant(false));     // Check 3
                     findAndHookMethod("Ӏ", lpparam.classLoader, "ˏ", android.content.Context.class, returnConstant(false));     // Check 4
                     findAndHookMethod("Ӏ", lpparam.classLoader, "ᐝ", android.content.Context.class, returnConstant(false));     // Check 5
-                    Log.d(TAG, "New EmulatorDetector bypassed!");
+                    Log.d(TAG, "EmulatorDetector bypassed!");
                 }
                 catch (Throwable ex){
-                    Log.d(TAG, "New EmulatorDetector failed!");
-
+                    Log.d(TAG, "EmulatorDetector failed!");
+                }
+            }
+            else{
+                try {
+                    Log.d(TAG, "Starting to bypass EmulatorDetector version lower than 2.3.5.894");
+                    findAndHookMethod("Ӏ", lpparam.classLoader, "ˊ", returnConstant(false));                                    // Check 1
+                    findAndHookMethod("Ӏ", lpparam.classLoader, "ˋ", returnConstant(false));                                    // Check 2
+                    findAndHookMethod("Ӏ", lpparam.classLoader, "ˋ", android.content.Context.class, returnConstant(false));     // Check 3
+                    findAndHookMethod("Ӏ", lpparam.classLoader, "ˎ", returnConstant(false));                                    // Check 4
+                    findAndHookMethod("Ӏ", lpparam.classLoader, "ˎ", android.content.Context.class, returnConstant(false));     // Check 5
+                    Log.d(TAG, "EmulatorDetector bypassed!");
+                }
+                catch (Throwable e){
+                    Log.d(TAG, "EmulatorDetector failed!");
                 }
             }
 
             // DebuggerDetector (USB Debugging)
-            try{
-                findAndHookMethod("ﺫ", lpparam.classLoader, "ˋ", android.content.Context.class, returnConstant(false));     // Check 1
-                Log.d(TAG, "Old DebuggerDetector bypassed!");
-            }
-            catch (Throwable e){
-                Log.d(TAG, "Old DebuggerDetector failed, trying a new one!");
-                try{
-                    findAndHookMethod("ĭ", lpparam.classLoader, "ˎ", android.content.Context.class, returnConstant(false));     // Check 1
-                    Log.d(TAG, "New DebuggerDetector bypassed!");
+            if(versionCode >= 20000045){
+                try {
+                    Log.d(TAG, "Starting to bypass DebuggerDetector version 2.4.1 or higher");
+                    findAndHookMethod("ﯦ", lpparam.classLoader, "ˎ", android.content.Context.class, returnConstant(false));     // Check 1
+                    Log.d(TAG, "DebuggerDetector bypassed!");
                 }
                 catch (Throwable ex){
-                    Log.d(TAG, "New DebuggerDetector failed!");
-
+                    Log.d(TAG, "DebuggerDetector failed!");
+                }
+            }
+            else if(versionCode >= 20000042){
+                try {
+                    Log.d(TAG, "Starting to bypass DebuggerDetector version 2.3.5.894 or higher");
+                    findAndHookMethod("ĭ", lpparam.classLoader, "ˎ", android.content.Context.class, returnConstant(false));     // Check 1
+                    Log.d(TAG, "DebuggerDetector bypassed!");
+                }
+                catch (Throwable ex){
+                    Log.d(TAG, "DebuggerDetector failed!");
+                }
+            }
+            else{
+                try {
+                    Log.d(TAG, "Starting to bypass DebuggerDetector version lower than 2.3.5.894");
+                    findAndHookMethod("ﺫ", lpparam.classLoader, "ˋ", android.content.Context.class, returnConstant(false));     // Check 1
+                    Log.d(TAG, "DebuggerDetector bypassed!");
+                }
+                catch (Throwable e){
+                    Log.d(TAG, "DebuggerDetector failed!");
                 }
             }
 
