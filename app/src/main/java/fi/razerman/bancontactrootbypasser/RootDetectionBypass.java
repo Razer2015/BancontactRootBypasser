@@ -9,17 +9,16 @@ import android.content.Context;
 import android.content.pm.PackageManager;
 
 import de.robv.android.xposed.IXposedHookLoadPackage;
+import de.robv.android.xposed.XC_MethodHook;
 import de.robv.android.xposed.callbacks.XC_LoadPackage.LoadPackageParam;
 
 import static de.robv.android.xposed.XC_MethodReplacement.returnConstant;
-import static de.robv.android.xposed.XposedBridge.log;
 import static de.robv.android.xposed.XposedHelpers.callMethod;
 import static de.robv.android.xposed.XposedHelpers.callStaticMethod;
 import static de.robv.android.xposed.XposedHelpers.findAndHookMethod;
 import static de.robv.android.xposed.XposedHelpers.findClass;
 
 import android.util.Log;
-import java.util.List;
 
 public class RootDetectionBypass implements IXposedHookLoadPackage {
     private static final String TAG = RootDetectionBypass.class.getSimpleName();
@@ -51,7 +50,69 @@ public class RootDetectionBypass implements IXposedHookLoadPackage {
             findAndHookMethod("com.awl.bfi.ssm.NativeAdapter", lpparam.classLoader, "lookForSpecificBinaries", returnConstant(0));            // Check 4
             Log.d(TAG, "Native methods bypassed!");
 
+            // RootedNativeDetector
+            // Version: 20000046 -> o.js.smali
+
+            // SignatureDetector
+            // Version: 20000046 -> o.kV.smali
+
+            // New way of bypassing the root detection (Untested)
+            if(versionCode >= 20000046){
+                boolean bypasssucceeded = true;
+                Log.d(TAG, "Starting to bypass version 2.5.0 or higher");
+                try {
+                    findAndHookMethod("o.nv", lpparam.classLoader, "ˋ", String.class, new XC_MethodHook() {
+                        @Override
+                        protected void beforeHookedMethod(MethodHookParam param) throws Throwable {
+                            String inputParam = param.args[0].toString();
+                            inputParam = inputParam.replace("true", "false");
+                            param.args[0] = inputParam;
+                        }
+                    });
+                }
+                catch (Throwable ex){
+                    bypasssucceeded = false;
+                    Log.d(TAG, "Failed to hook string one of the root detection class!");
+                }
+                try {
+                    findAndHookMethod("o.nv", lpparam.classLoader, "ˏ", String.class, new XC_MethodHook() {
+                        @Override
+                        protected void beforeHookedMethod(MethodHookParam param) throws Throwable {
+                            String inputParam = param.args[0].toString();
+                            inputParam = inputParam.replace("true", "false");
+                            param.args[0] = inputParam;
+                        }
+                    });
+                }
+                catch (Throwable ex){
+                    bypasssucceeded = false;
+                    Log.d(TAG, "Failed to hook string two of the root detection class!");
+                }
+
+                if(bypasssucceeded){
+                    Log.d(TAG, "Bypassed Bancontacts root detection!");
+                    return;
+                }
+                else{
+                    Log.d(TAG, "Bancontacts root detection bypass failed!");
+                }
+            }
+
             // RootedDetector
+            /*if(versionCode >= 20000046){
+                try {
+                    Log.d(TAG, "Starting to bypass RootedDetector version 2.5.0 or higher");
+                    findAndHookMethod("o.kj", lpparam.classLoader, "ʼ", android.content.Context.class, returnConstant(false));     // Check 1
+                    findAndHookMethod("o.kj", lpparam.classLoader, "ˊ", android.content.Context.class, returnConstant(false));     // Check 2
+                    findAndHookMethod("o.kj", lpparam.classLoader, "ˋ", android.content.Context.class, returnConstant(false));     // Check 3
+                    findAndHookMethod("o.kj", lpparam.classLoader, "ˎ", android.content.Context.class, returnConstant(false));     // Check 4
+                    findAndHookMethod("o.kj", lpparam.classLoader, "ॱ", android.content.Context.class, returnConstant(false));     // Check 5
+                    Log.d(TAG, "RootedDetector bypassed!");
+                }
+                catch (Throwable ex){
+                    Log.d(TAG, "RootedDetector failed!");
+                }
+            }*/
             if(versionCode >= 20000045){
                 try {
                     Log.d(TAG, "Starting to bypass RootedDetector version 2.4.1 or higher");
